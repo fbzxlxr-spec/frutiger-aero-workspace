@@ -1,47 +1,27 @@
-# Frutiger Aero Workspace 2.0
+# Frutiger Aero Workspace 4.0
 
-A mobile-friendly, glossy Frutiger Aero-inspired web workspace built with Python, Flask, HTML, CSS and JavaScript.
+A Node.js + Express + Socket.IO Frutiger Aero desktop.
 
-## What's new
-- Retro startup screen reading **WELCOME, DEAR TRAVELER.**
-- Glossy aqua gradients, reflections, translucent glass panels and skeuomorphic shadows
-- Idea document editor: create, edit, delete, pin and drag sticky-note cards
-- Local browser storage for ideas, profile, chat demo, fish count and whiteboard
-- Profile picture upload (PNG, JPG or WebP, under 900 KB)
-- Interactive fish collecting and feeding
-- Bubble-popping mini-game
-- Tiny 5×5 Minesweeper
-- Focus timer, local clock and browser-generated ambient synth tones
-- Responsive layout for phones, tablets and desktop browsers
-- Render deployment files included
+## Deploy on Render
+- Runtime: Node
+- Root Directory: leave blank
+- Build Command: `npm install`
+- Start Command: `npm start`
+- Node: 20 or newer
 
-## Run on Android (Pydroid 3)
-1. Extract this ZIP.
-2. Open Pydroid 3 and install Flask and Gunicorn from its Pip interface, or run `pip install -r requirements.txt` in its terminal.
-3. Open `app.py` in Pydroid 3 and press Run.
-4. In Chrome on the same phone, visit `http://127.0.0.1:5000`.
+## Workspace 4.0 additions
+- Four visual variants: Frutiger Aero (original look), DORfic, Eco, and Aqua. The selection is saved locally.
+- General Chat public lounge using Socket.IO, with basic filtering, reporting, and temporary in-memory messages.
+- Fan Art gallery with PNG/JPG/WebP uploads up to 1.5 MB, basic reporting, and temporary in-memory posts.
+- Local profile name, built-in avatars, and custom avatar upload.
+- Two new standalone arcade games: Bubble Pop Blitz and Cloud Catcher.
+- Bubble-pop sound effects and a victory fanfare.
+- Fishy defaults to `gpt-4.1-mini` with the OpenAI Responses API.
 
-## Publish it so other people can visit
-This project includes `render.yaml` and a `Procfile` for deployment on Render.
-1. Create a GitHub account if you don't already have one.
-2. Create a new repository and upload the files in this folder.
-3. Create a Render account and choose **New + → Blueprint**.
-4. Connect the GitHub repository containing this project.
-5. Render reads `render.yaml`, installs dependencies and deploys the site.
-6. When deployment finishes, Render gives you a public `https://...onrender.com` address. Share that address with others.
-
-You can do the GitHub and Render steps from a mobile browser, although a computer is often more convenient. Hosting providers may change their free-plan limits or require a payment method.
-
-## Important storage and collaboration details
-- **Ideas and settings use browser localStorage.** They persist after refresh on the same browser/device, but do not automatically sync to other devices or other people's accounts.
-- The chat is a local demo, not a real multi-user chat service.
-- Fish collection, profile picture, whiteboard and idea cards are currently saved locally in each browser.
-- A public URL makes the website reachable worldwide, but it does not make local browser data shared.
-- To support true shared accounts, cross-device idea sync, shared fish collections and real-time collaboration, a next version needs user accounts, a database and server-side APIs. Do not store passwords or private information in this prototype.
-- Uploaded profile images are stored in localStorage on the current device. Keep images under 900 KB.
-- This is a 2D CSS aquatic scene with a 3D-inspired look, not a full 3D engine.
-
-## Troubleshooting
-- If Flask is missing: `pip install Flask`
-- If the server starts but the page doesn't open, check that the terminal says it is running and use `http://127.0.0.1:5000`.
-- Keep the Python app running while you use the local website.
+## Important limitations and safety
+- Chat and fan art are public to visitors, not private. Do not post personal details. Reporting hides content after multiple reports, but this is not a substitute for active human moderation. An adult administrator should supervise a school community and remove the public chat/gallery if moderation cannot be provided.
+- Chat and gallery posts are held in server memory and clear on restart or redeploy. They are not permanent or account-authenticated.
+- Profiles and custom avatars are local to each browser/device, not shared accounts.
+- The server has no real user identity system. Nicknames are not verified.
+- Fishy requires an adult-managed `OPENAI_API_KEY` in Render Environment. Never put the key in browser code, GitHub, or this ZIP. Add it in Render's Environment settings. The default model is `gpt-4.1-mini`; it can be overridden with `OPENAI_MODEL`.
+- Basic chat filters are not perfect moderation. For a school deployment, add adult moderation and clear community rules before inviting students.

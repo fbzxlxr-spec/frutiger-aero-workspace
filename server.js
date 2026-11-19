@@ -10,14 +10,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: false }, maxHttpBufferSize: 1e6 });
+const io = new Server(server, { cors: { origin: false }, maxHttpBufferSize: 2.2e6 });
 const PORT = Number(process.env.PORT || 3000);
 
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(express.json({ limit: '24kb' }));
+app.use(express.json({ limit: '3mb' }));
 app.get('/', (_req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/index.html', (_req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-app.get('/health', (_req, res) => res.json({ ok: true, service: 'Frutiger Aero Workspace 3.1' }));
+app.get('/health', (_req, res) => res.json({ ok: true, service: 'Frutiger Aero Workspace 4.0' }));
 
 const chatLimiter = rateLimit({ windowMs: 60_000, limit: 12, standardHeaders: 'draft-7', legacyHeaders: false });
 app.post('/api/fishy', chatLimiter, async (req, res) => {
@@ -35,7 +35,7 @@ app.post('/api/fishy', chatLimiter, async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || 'gpt-6-luna',
+        model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
         instructions: 'You are Fishy, a cheerful, age-appropriate Regal Blue Tang fish assistant inside a nostalgic Frutiger Aero desktop. Be kind, concise, safe for younger users, and never ask for private information. Do not encourage dangerous activities. You can help with the website, games, and general questions.',
         input
       })
@@ -54,7 +54,55 @@ const roomStates = new Map();
 const rematchVotesByRoom = new Map();
 const rematchRequirements = { 'Tic Tac Aero!': 2, 'Mindsweeper': 3, 'Fish Aquarium': 4, 'Raise your Fish!': 5, 'AeroVice City': 6 };
 function safeRoom(value) { return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'AERO'; }
+
+// Workspace 4.0 community features. These in-memory collections reset on server restart.
+const communityMessages = [];
+const fanArtPosts = [];
+const reportCounts = new Map();
+const communityBlocked = new Map();
+let communityId = 0;
+const blockedPatterns = [/(?:\b\d{3}[-. ]?\d{3}[-. ]?\d{4}\b)/i, /\b(?:address|home address|school name|password)\s*[:=]/i, /\b(?:kill yourself|kys|slur-placeholder)\b/i];
+function cleanCommunityText(value, max=240) { return String(value || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0,max); }
+function communitySafe(text) { return !blockedPatterns.some(re => re.test(text)); }
+function emitNotice(socket, text) { socket.emit('community:notice', text); }
+
 io.on('connection', socket => {
+
+  socket.emit('community:history', communityMessages.slice(-60));
+  socket.emit('art:history', fanArtPosts.slice(-30));
+  socket.on('community:send', payload => {
+    const now = Date.now();
+    if ((communityBlocked.get(socket.id) || 0) > now) return emitNotice(socket, 'Chat is temporarily paused for this connection.');
+    const nick = cleanCommunityText(payload?.nick,18) || 'Traveler';
+    const text = cleanCommunityText(payload?.text,240);
+    if (!text) return;
+    if (!communitySafe(text)) { communityBlocked.set(socket.id, now + 60_000); return emitNotice(socket, 'That message was blocked to protect personal information and keep chat respectful.'); }
+    const msg = { id: String(++communityId), nick, text, at: now };
+    communityMessages.push(msg); if (communityMessages.length > 100) communityMessages.shift();
+    io.emit('community:message', msg);
+  });
+  socket.on('community:report', payload => {
+    const id = String(payload?.id || ''); if (!id) return;
+    reportCounts.set('chat:'+id, (reportCounts.get('chat:'+id) || 0) + 1);
+    const msg = communityMessages.find(m => m.id === id);
+    if (msg && reportCounts.get('chat:'+id) >= 3) { communityMessages.splice(communityMessages.indexOf(msg),1); io.emit('community:remove', { id }); }
+  });
+  socket.on('art:submit', payload => {
+    const title = cleanCommunityText(payload?.title,48), artist = cleanCommunityText(payload?.artist,18) || 'Traveler';
+    const data = typeof payload?.data === 'string' ? payload.data : '';
+    if (!title || !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(data) || data.length > 2_100_000) return emitNotice(socket, 'Artwork upload rejected. Use a PNG, JPG, or WebP under 1.5 MB.');
+    if (!communitySafe(title) || !communitySafe(artist)) return emitNotice(socket, 'That title or artist name could expose private information.');
+    const post = { id: String(++communityId), title, artist, data, at: Date.now() };
+    fanArtPosts.push(post); if (fanArtPosts.length > 30) fanArtPosts.shift();
+    io.emit('art:new', post); emitNotice(socket, 'Artwork added to the temporary gallery.');
+  });
+  socket.on('art:report', payload => {
+    const id = String(payload?.id || ''); if (!id) return;
+    reportCounts.set('art:'+id, (reportCounts.get('art:'+id) || 0) + 1);
+    const post = fanArtPosts.find(p => p.id === id);
+    if (post && reportCounts.get('art:'+id) >= 3) { fanArtPosts.splice(fanArtPosts.indexOf(post),1); io.emit('art:remove', { id }); }
+  });
+
   socket.on('room:join', ({ room, game, nickname } = {}) => {
     const roomId = safeRoom(room);
     const gameId = String(game || 'lobby').slice(0, 32);
