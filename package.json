@@ -1,10 +1,14 @@
 {
-  "name": "frutiger-aero-workspace-3",
-  "version": "3.0.0",
+  "name": "frutiger-aero-workspace-3-2",
+  "version": "3.2.0",
   "private": true,
   "type": "module",
-  "scripts": { "start": "node server.js" },
-  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",
