@@ -17,14 +17,14 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: '24kb' }));
 app.get('/', (_req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/index.html', (_req, res) => res.sendFile(path.join(__dirname, 'index.html')));
-app.get('/health', (_req, res) => res.json({ ok: true, service: 'Frutiger Aero Workspace 3.0' }));
+app.get('/health', (_req, res) => res.json({ ok: true, service: 'Frutiger Aero Workspace 3.1' }));
 
 const chatLimiter = rateLimit({ windowMs: 60_000, limit: 12, standardHeaders: 'draft-7', legacyHeaders: false });
 app.post('/api/fishy', chatLimiter, async (req, res) => {
   const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
   const history = Array.isArray(req.body?.history) ? req.body.history.slice(-8) : [];
   if (!message || message.length > 1200) return res.status(400).json({ error: 'Please enter a message under 1,200 characters.' });
-  if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: 'Fishy is in demo mode. An adult site administrator can configure the API key in the server environment to enable AI replies.' });
+  if (!process.env.OPENAI_API_KEY) { const lower = message.toLowerCase(); let reply = 'Blub! I am in demo mode right now. I can still help with the Workspace buttons, games, aquarium care, and basic navigation. An adult site administrator can connect the AI service for open-ended answers.'; if (/hello|hi\b|hey/.test(lower)) reply = 'Hello, traveler! 🐠 Welcome back to the aqua desktop. What are we exploring today?'; else if (/save|progress/.test(lower)) reply = 'Press Save Progress! at the top of the Arcade. Your local game and fish-care progress will be stored in this browser.'; else if (/fish|aquarium|tank/.test(lower)) reply = 'Keep your fish fed, clean the tank when it gets dirty, and collect bubbles to adopt more fish. Happy fish make happy bubbles!'; else if (/music|song|playlist/.test(lower)) reply = 'Open Frutiger’s Music, choose Add audio beside a track, select an audio file you have permission to use, then press Play.'; else if (/game|arcade/.test(lower)) reply = 'Visit Aero Arcade, choose a game, and press Start. Fish Aquarium has Classic, Timed, and Endless modes.'; return res.json({ reply, mode: 'demo' }); }
 
   try {
     const input = history
@@ -51,6 +51,8 @@ app.post('/api/fishy', chatLimiter, async (req, res) => {
 
 const rooms = new Map();
 const roomStates = new Map();
+const rematchVotesByRoom = new Map();
+const rematchRequirements = { 'Tic Tac Aero!': 2, 'Mindsweeper': 3, 'Fish Aquarium': 4, 'Raise your Fish!': 5, 'AeroVice City': 6 };
 function safeRoom(value) { return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'AERO'; }
 io.on('connection', socket => {
   socket.on('room:join', ({ room, game, nickname } = {}) => {
@@ -80,12 +82,30 @@ io.on('connection', socket => {
     if (!text) return;
     io.to(key).emit('game:chat', { nickname: socket.data.nick || 'Traveler', text, at: Date.now() });
   });
+  socket.on('rematch:vote', payload => {
+    const key = socket.data.roomKey;
+    if (!key) return;
+    const gameId = String(payload?.game || '').slice(0, 32);
+    if (!key.endsWith(':' + gameId)) return;
+    if (!rematchVotesByRoom.has(key)) rematchVotesByRoom.set(key, new Set());
+    const votes = rematchVotesByRoom.get(key);
+    votes.add(socket.id);
+    const required = rematchRequirements[gameId] || 2;
+    const roomCount = rooms.get(key)?.size || 0;
+    io.to(key).emit('rematch:count', { votes: votes.size, required, players: roomCount });
+    if (votes.size >= required && roomCount >= required) {
+      votes.clear();
+      roomStates.delete(key);
+      io.to(key).emit('rematch:start', { game: gameId });
+    }
+  });
   socket.on('disconnect', () => {
     const key = socket.data.roomKey;
     if (!key || !rooms.has(key)) return;
     rooms.get(key).delete(socket.id);
     const count = rooms.get(key).size;
-    if (!count) { rooms.delete(key); roomStates.delete(key); }
+    rematchVotesByRoom.get(key)?.delete(socket.id);
+    if (!count) { rooms.delete(key); roomStates.delete(key); rematchVotesByRoom.delete(key); }
     else io.to(key).emit('room:presence', { count });
   });
 });
