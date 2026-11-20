@@ -1,6 +1,6 @@
 {
-  "name": "frutiger-aero-workspace-4",
-  "version": "4.0.0",
+  "name": "frutiger-aero-workspace-5",
+  "version": "5.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,5 +14,6 @@
     "express-rate-limit": "^8.1.0",
     "helmet": "^8.1.0",
     "socket.io": "^4.8.1"
-  }
+  },
+  "description": "Frutiger Aero Workspace 5.0, a glossy Windows Vista-era desktop experience"
 }
