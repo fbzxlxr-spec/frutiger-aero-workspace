@@ -1,13 +1,25 @@
-# Frutiger Aero Workspace 5.1
+# Frutiger Aero Workspace 5.3
 
-Node.js web app.
+A browser-based Frutiger Aero desktop and arcade experience.
 
-## Render
-- Runtime: Node
-- Build command: `npm install`
-- Start command: `npm start`
-- Root directory: leave blank
+## Run locally
 
-Optional AI: set `OPENAI_API_KEY` in Render Environment. Never put the key in this repository or browser code. `OPENAI_MODEL` is optional and defaults to `gpt-4.1-mini`.
+- Install Node.js 20 or newer.
+- Run `npm install`.
+- Run `npm start`.
+- Open the local address printed by the server.
 
-The loading sound and startup reference image are served locally from this project. Aero Dash custom levels are stored locally in the visitor's browser; public cross-user level publishing requires a database/API and moderation. This package has not yet been verified on a live Render deployment.
+## Deploy
+
+For Render, use the Node runtime, `npm install` as the build command, and `npm start` as the start command. Configure any required server environment variables in the hosting dashboard. Never put API keys in browser code or commit them to GitHub.
+
+## 5.3 update
+
+- Vista-style Victory and Game Over windows that follow the selected visual variant.
+- Aero Dash hub with 22 listed courses, 10 playable levels, unlockable icons, quests, coin rewards, and hourly/daily chests. Progress is stored locally in the browser.
+- Expanded AeroVice City map with smooth steering and free-roam movement.
+- Refreshed Frutiger Festive, Aqua, and Metro atmosphere details.
+- Standalone Finder startup icon without the computer frame.
+- Glossy Aero Playlist icon and a Frutiger Aero nature wallpaper background.
+
+The playlist wallpaper is loaded from a remote image URL, so it requires an internet connection. The rest of the included workspace assets are local.
