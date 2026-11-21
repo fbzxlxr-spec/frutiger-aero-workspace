@@ -1,6 +1,6 @@
 {
   "name": "frutiger-aero-workspace",
-  "version": "9.0.0",
+  "version": "10.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,5 +15,5 @@
     "helmet": "^8.1.0",
     "socket.io": "^4.8.1"
   },
-  "description": "Frutiger Aero Workspace 9.0"
+  "description": "Frutiger Aero Workspace 10.0"
 }

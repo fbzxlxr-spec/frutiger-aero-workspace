@@ -20,7 +20,7 @@ app.get('/index.html', (_req, res) => res.sendFile(path.join(__dirname, 'index.h
 app.get('/loading.mp3', (_req, res) => res.sendFile(path.join(__dirname, 'loading.mp3')));
 app.get('/startup-reference.jpg', (_req, res) => res.sendFile(path.join(__dirname, 'startup-reference.jpg')));
 app.get('/finder-icon.png', (_req, res) => res.sendFile(path.join(__dirname, 'finder-icon.png')));
-app.get('/health', (_req, res) => res.json({ ok: true, service: 'Frutiger Aero Workspace 5.3' }));
+app.get('/health', (_req, res) => res.json({ ok: true, service: 'Frutiger Aero Workspace 10.0' }));
 
 const chatLimiter = rateLimit({ windowMs: 60_000, limit: 12, standardHeaders: 'draft-7', legacyHeaders: false });
 app.post('/api/fishy', chatLimiter, async (req, res) => {
