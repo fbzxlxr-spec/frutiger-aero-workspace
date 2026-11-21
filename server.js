@@ -10,7 +10,7 @@ const app=express();
 app.use(helmet({contentSecurityPolicy:false,crossOriginEmbedderPolicy:false}));
 app.use(rateLimit({windowMs:60_000,limit:180,standardHeaders:true,legacyHeaders:false}));
 app.use(express.static(__dirname,{extensions:['html']}));
-app.get('/health',(req,res)=>res.json({ok:true,version:'11.0.0'}));
+app.get('/health',(req,res)=>res.json({ok:true,version:'12.0.0'}));
 const server=createServer(app);const io=new Server(server,{maxHttpBufferSize:1e6});
 const rooms=new Map();
 io.on('connection',socket=>{
@@ -18,4 +18,4 @@ io.on('connection',socket=>{
  socket.on('chat-message',payload=>{const room=socket.data.room;if(!room||!payload)return;const message=String(payload.message||'').slice(0,500);if(!message.trim())return;io.to(room).emit('chat-message',{nickname:socket.data.nickname||'Traveler',message});});
  socket.on('disconnect',()=>{if(socket.data.room)socket.to(socket.data.room).emit('chat-message',{nickname:'Workspace',message:`${socket.data.nickname||'A traveler'} left the room.`})});
 });
-const port=Number(process.env.PORT)||3000;server.listen(port,'0.0.0.0',()=>console.log(`Frutiger Aero Workspace 11.0 running on ${port}`));
+const port=Number(process.env.PORT)||3000;server.listen(port,'0.0.0.0',()=>console.log(`Frutiger Aero Workspace 12.0 running on ${port}`));
