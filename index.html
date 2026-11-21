@@ -312,7 +312,7 @@ const tracks=['Ocean Glass','Blue Sky Boulevard','Bubble Garden','Digital Lagoon
 let history=[];
 function nav(page){$$('.page').forEach(p=>p.classList.remove('active'));$('#'+page).classList.add('active');}
 $$('[data-page]').forEach(b=>b.addEventListener('click',()=>nav(b.dataset.page)));
-$('#enterBtn').onclick=()=>$('#startup').classList.add('hide');setTimeout(()=>$('#startup').classList.add('hide'),5200);
+// Startup is controlled by the final boot controller below.
 function playTone(freq=640,duration=.09,type='sine',gain=.05){try{const c=new(window.AudioContext||window.webkitAudioContext)();const o=c.createOscillator(),g=c.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(gain,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+duration);o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+duration);o.onended=()=>c.close()}catch{}}
 function gameCard(name,i){return `<div class="tile"><div class="emoji">${gameIcons[i]}</div><h3>${name}</h3><p>${['A breezy noughts-and-crosses duel','Find the safe squares','Collect bubbles and sea friends','Raise a happy little fish','Cruise the sunny seaside city'][i]}</p><button onclick="openGame('${name.replaceAll("'","\\'")}','single')">Single Player</button><button onclick="openGame('${name.replaceAll("'","\\'")}','multi')">Multiplayer</button></div>`}
 $('#gameCards').innerHTML=gameNames.map(gameCard).join('');
@@ -410,13 +410,7 @@ const aeroSaveKey='aeroWorkspace31Save';
 let gameWon=false, gameMode='Classic', level=1, gameClock=null, timeLeft=30, redBubbles=[], cityOrbs=[], rematchVotes=0, rematchNeed=2, rematchVoted=false;
 let petList=[{name:'Bubbles',mood:'happy',hunger:0,dirty:0,level:1}], activePet=0, fishAsset=$('#regalTangAsset');
 let aquariumFrame=0, tankDirt=0, fishMood='happy';
-function soundFX(kind='pop'){
-  try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;const c=new AC();const g=c.createGain();g.connect(c.destination);const now=c.currentTime;g.gain.setValueAtTime(.0001,now);
-    if(kind==='pop'){const o=c.createOscillator();o.type='sine';o.frequency.setValueAtTime(720,now);o.frequency.exponentialRampToValueAtTime(260,now+.12);g.gain.exponentialRampToValueAtTime(.12,now+.012);g.gain.exponentialRampToValueAtTime(.0001,now+.16);o.connect(g);o.start();o.stop(now+.17);o.onended=()=>c.close();}
-    else if(kind==='cheer'){[523,659,784,1046].forEach((f,i)=>{let o=c.createOscillator(),v=c.createGain();o.type='triangle';o.frequency.value=f;v.gain.setValueAtTime(.0001,now+i*.11);v.gain.exponentialRampToValueAtTime(.075,now+i*.11+.025);v.gain.exponentialRampToValueAtTime(.0001,now+i*.11+.32);o.connect(v);v.connect(c.destination);o.start(now+i*.11);o.stop(now+i*.11+.34);o.onended=()=>{if(i===3)c.close()}})}
-    else {let o=c.createOscillator();o.type='triangle';o.frequency.value=kind==='sad'?190:kind==='happy'?720:430;g.gain.exponentialRampToValueAtTime(.07,now+.03);g.gain.exponentialRampToValueAtTime(.0001,now+.24);o.connect(g);o.start();o.stop(now+.25);o.onended=()=>c.close()}
-  }catch{}
-}
+function soundFX(kind='pop'){ if(kind==='pop' && window.__aeroBubblePop){window.__aeroBubblePop();return;} }
 function finishGame(won,message=''){
   if(gameState==='GAMEOVER')return;gameWon=!!won;setState('GAMEOVER');$('#hintLabel').textContent=message||(won?'You did it!':'Try again!');
   if(won)soundFX('cheer');else soundFX('sad');drawGame();broadcastState({tic,turn,gameState,gameWon,level,gameMode,mineScore,bubbles,car});
@@ -450,7 +444,7 @@ function saveWorkspace(show=true){let data={collected,tankFish,petList,activePet
 function loadWorkspace(){try{let d=JSON.parse(localStorage.getItem(aeroSaveKey)||'{}');if(Number.isFinite(d.collected))collected=d.collected;if(Array.isArray(d.petList)&&d.petList.length)petList=d.petList;activePet=Math.min(d.activePet||0,petList.length-1);tankDirt=d.tankDirt||0;gameMode=d.gameMode||'Classic';level=Math.min(10,d.level||1);mineScore=d.mineScore||0}catch{}}
 loadWorkspace();
 // Global click bubble sound, excluding controls that already have their own sound.
-document.addEventListener('click',e=>{if(e.target.closest('button, input, select, textarea, a'))return;soundFX('pop')},{passive:true});
+document.addEventListener('click',e=>{if(e.target.closest('button, input, select, textarea, a, canvas, [role=button]'))return;soundFX('pop')},{passive:true});
 // Music player: choose audio files for the 10 requested tracks. Built-in original tune is fallback.
 const musicTracks=[['LEASE','Takeshi Abo'],['Aquatic Ambience (Remix)','Scizzie'],['Dreamscape','009 Sound System'],['Mii Channel Theme','Nintendo'],['Wii Shop Channel Theme','Nintendo'],['Kalimba','Mr. Scruff'],['Flim','Aphex Twin'],['Lotus Waters','Unknown artist'],['Nintendo DSi Shop Theme','Nintendo'],['Fireflies','Owl City']];
 let activeAudio=null, audioUrls=new Map(), selectedTrack=0, musicFileTarget=0;
@@ -698,9 +692,7 @@ body[data-variant="technozen"]{background-image:linear-gradient(120deg,rgba(220,
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 // Startup: use the supplied Mac-era startup reference as a photographic mood, with the requested wording.
 const boot=$('#startup'); if(boot){const h=boot.querySelector('h2');if(h)h.textContent='Welcome to the 2000s.';const b=boot.querySelector('.bootbrand');if(b)b.textContent='';}
-// Loading sound supplied by the user. Browser audio starts only after their Enter gesture.
-const loadSfx=new Audio('/loading.mp3');loadSfx.preload='auto';loadSfx.volume=.55;
-$('#enterBtn')?.addEventListener('click',()=>{loadSfx.currentTime=0;loadSfx.play().catch(()=>{});},{once:true});
+// Startup audio is handled after full page load by the final boot controller.
 // AI picker and backend endpoint selector.
 const aiPick=document.createElement('div');aiPick.className='setting-card';aiPick.innerHTML='<h3>ARTIFICIAL INTELLIGENCE</h3><button data-ai="msn">MSN Buddy</button><button data-ai="fishy">Fishy</button><p id="aiStatus" class="small">Choose your desktop assistant.</p>';
 const settingsGrid=$('#settings .settings-grid');if(settingsGrid&&!settingsGrid.querySelector('[data-ai]'))settingsGrid.append(aiPick);
@@ -749,7 +741,7 @@ paintAtmosphere();$$('[data-variant]').forEach(b=>b.addEventListener('click',()=
 // Timed bonus arcade rounds also receive a proper themed end screen. Ten points earns a clear; otherwise it is a retry.
 const miniInfo=$('#miniInfo');if(miniInfo){const miniEndWatch=new MutationObserver(()=>{const t=miniInfo.textContent||'';if(t.includes('Round complete!')){const score=Number((($('#miniScore')?.textContent||'').match(/-?\d+/)||['0'])[0]);const won=score>=10;setTimeout(()=>{showResult(won);const target=won?win:lose;target.querySelector('.result-description').textContent=won?'Round cleared! You scored '+score+' points.':'You scored '+score+' points. Try another round and build a higher score.'},80)}});miniEndWatch.observe(miniInfo,{childList:true,subtree:true,characterData:true})}
 // Restore the Finder icon as a clean standalone mark. The old photo frame/computer border is not used.
-const boot=$('#startup');if(boot){const card=boot.querySelector('.boot');if(card){card.innerHTML='<div class="finder-mark"><img src="/finder-icon.png" alt="Classic Macintosh Finder icon"></div><h2>Welcome to the 2000s.</h2><p>Your aqua desktop is waking up.</p><div class="bootbar"><i></i></div><small>Starting Frutiger Aero Workspace</small><button id="enterBtn">Enter Workspace</button>';}const enter=$('#enterBtn');if(enter&&!enter.dataset.soundBound){enter.dataset.soundBound='1';enter.addEventListener('click',()=>{try{const a=new Audio('/loading.mp3');a.volume=.5;a.play().catch(()=>{})}catch{}},{once:true})}}
+const boot=$('#startup');if(boot){const card=boot.querySelector('.boot');if(card){card.innerHTML='<div class="finder-mark"><img src="/finder-icon.png" alt="Classic Macintosh Finder icon"></div><h2>Welcome to the 2000s.</h2><p>Your aqua desktop is waking up.</p><div class="bootbar"><i></i></div><small>Starting Frutiger Aero Workspace</small><button id="enterBtn">Enter Workspace</button>';}}
 // Replace the old flat playlist glyph with a glossy, computer-rendered aqua music orb.
 const musicIcon=$('.music-icon');if(musicIcon){const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220"><defs><linearGradient id="bg" x2="0" y2="1"><stop stop-color="#e9ffff"/><stop offset=".42" stop-color="#7be4ff"/><stop offset=".72" stop-color="#159bd4"/><stop offset="1" stop-color="#05639f"/></linearGradient><linearGradient id="glass" x2="0" y2="1"><stop stop-color="#fff" stop-opacity=".98"/><stop offset=".48" stop-color="#e7fbff" stop-opacity=".9"/><stop offset="1" stop-color="#a8eaff" stop-opacity=".96"/></linearGradient><linearGradient id="note" x2="0" y2="1"><stop stop-color="#48c9ed"/><stop offset="1" stop-color="#0876b5"/></linearGradient></defs><rect x="5" y="5" width="210" height="210" rx="43" fill="url(#bg)" stroke="#fff" stroke-width="6"/><path d="M17 56Q110 2 203 56L203 77Q110 33 17 77Z" fill="#fff" opacity=".42"/><circle cx="181" cy="39" r="12" fill="#fff" opacity=".35"/><rect x="38" y="38" width="144" height="146" rx="25" fill="url(#glass)" stroke="#fff" stroke-width="4"/><rect x="53" y="54" width="114" height="24" rx="8" fill="#dff8ff" stroke="#9cdef4"/><circle cx="65" cy="66" r="4" fill="#fff"/><path d="M82 105h55M82 123h55M82 141h38" stroke="#70b8d4" stroke-width="7" stroke-linecap="round"/><path d="M148 91v51a13 13 0 1 1-9-12V105l-31 7v43a13 13 0 1 1-9-12v-46z" fill="url(#note)" stroke="#fff" stroke-width="3" stroke-linejoin="round"/><path d="M42 194q70 25 136-1" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="4" stroke-linecap="round"/></svg>`;musicIcon.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);musicIcon.alt='Glossy skeuomorphic music playlist icon'}
 // Glossy, theme-adaptive Vista-style result windows for every arcade game.
@@ -855,9 +847,7 @@ body[data-variant="metro"] #variantAtmosphere .woofer-2{background:radial-gradie
 <script id="workspace80Upgrade">
 (()=>{
 'use strict';const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-// Mac-style loading sequence: white screen, Finder, then sound and a gentle reveal.
-const boot=$('#startup');let bootSoundPlayed=false;function playBootSound(){if(bootSoundPlayed)return;bootSoundPlayed=true;const a=new Audio('/loading.mp3');a.volume=.48;a.play().catch(()=>{bootSoundPlayed=false;document.addEventListener('pointerdown',()=>{if(!bootSoundPlayed){bootSoundPlayed=true;a.play().catch(()=>{})}},{once:true})})}
-if(boot){const card=boot.querySelector('.boot');if(card){card.innerHTML='<div class="finder-mark"><img src="/finder-icon.png" alt="Classic Macintosh Finder icon"></div><h2>Welcome to the 2000s.</h2><p>Starting your Macintosh-inspired workspace...</p><div class="bootbar"><i></i></div><small>Loading the aqua desktop</small>';}const reveal=()=>{playBootSound();setTimeout(()=>boot.classList.add('hide'),500)};window.addEventListener('load',()=>setTimeout(reveal,1900),{once:true});setTimeout(()=>{if(!boot.classList.contains('hide'))reveal()},4200)}
+// Startup is handled by the single final boot controller appended after this script.
 // Ensure atmosphere elements are refreshed when the selected variant changes.
 const atmosphere=$('#variantAtmosphere');if(atmosphere){const variantButtons=$$('[data-variant]');variantButtons.forEach(b=>b.addEventListener('click',()=>setTimeout(()=>{const v=document.body.dataset.variant||'aero';atmosphere.innerHTML='';if(v==='aqua'){for(let i=0;i<7;i++){const f=document.createElement('span');f.className='aqua-fish fish-'+(i%5);f.textContent=['🐠','🐟','🐡','🐠','🐟','🐬','🐟'][i];f.style.top=(10+i*12)+'%';f.style.animationDelay=(-i*3)+'s';atmosphere.append(f)}}if(v==='festive'){for(let i=0;i<26;i++){const f=document.createElement('i');f.className='snowflake';f.textContent='❄';f.style.left=(i*3.9)+'%';f.style.animationDelay=(-i*.6)+'s';atmosphere.append(f)}for(let i=0;i<10;i++){const b=document.createElement('i');b.className='festive-bubble';b.style.left=(i*10)+'%';atmosphere.append(b)}for(let i=0;i<6;i++){const p=document.createElement('i');p.className='festive-present';p.textContent=['🎁','🎀','🎁','🎁','🎄','🎁'][i];p.style.left=(4+i*17)+'%';atmosphere.append(p)}}if(v==='metro'){for(let i=0;i<3;i++){const w=document.createElement('i');w.className='metro-woofer woofer-'+i;atmosphere.append(w)}const dj=document.createElement('i');dj.className='metro-dj';dj.innerHTML='<b></b><span></span><em></em>';atmosphere.append(dj)}},0)))}
 // Global Victory/Game Over overlay for every classic arcade title.
@@ -881,6 +871,86 @@ function startCityTune(){stopCityTune();try{const AC=window.AudioContext||window
 const cityCanvas=$('#gameCanvas');if(cityCanvas){const originalCityDraw=window.cityDraw;}
 // Stop procedural music when leaving either game section.
 $$('[data-page]').forEach(b=>b.addEventListener('click',()=>{stopDashTune();if(!$('#play')?.classList.contains('active'))stopCityTune()}));
+})();
+</script>
+
+<style id="workspace80BootFix">
+/* Reliable Macintosh-style startup: the hidden state must override the ID-level boot styling. */
+#startup{opacity:1!important;visibility:visible!important;pointer-events:auto!important;transition:opacity .9s ease,visibility .9s ease!important}
+#startup.hide{opacity:0!important;visibility:hidden!important;pointer-events:none!important}
+#startup .boot h2{font-family:"Times New Roman",Times,serif!important;font-size:clamp(24px,4vw,34px)!important;font-weight:400!important;color:#252a34!important;opacity:0;transform:translateY(9px);transition:opacity 1.15s ease,transform 1.15s ease}
+#startup .boot h2.welcome-visible{opacity:1;transform:translateY(0)}
+#startup .boot p,#startup .boot small{font-family:Geneva,Tahoma,sans-serif!important}
+</style>
+<script id="workspace80BootAndBubbleFix">
+(()=>{
+ 'use strict';
+ const boot=document.getElementById('startup');
+ let bootStarted=false, audioPlayed=false, audioPending=false, popContext=null;
+ let bootAudio=null;
+ function getPopContext(){
+   const AC=window.AudioContext||window.webkitAudioContext;
+   if(!AC)return null;
+   if(!popContext||popContext.state==='closed')popContext=new AC();
+   if(popContext.state==='suspended')popContext.resume().catch(()=>{});
+   return popContext;
+ }
+ // A short filtered-noise burst plus a hollow pitch-drop gives a crisp, liquid bubble pop.
+ window.__aeroBubblePop=function(){
+   try{
+     const c=getPopContext();if(!c)return;
+     const now=c.currentTime, duration=.095, count=Math.floor(c.sampleRate*.055);
+     const buffer=c.createBuffer(1,count,c.sampleRate), data=buffer.getChannelData(0);
+     for(let i=0;i<count;i++){
+       const envelope=Math.pow(1-i/count,2.4);
+       data[i]=(Math.random()*2-1)*envelope;
+     }
+     const noise=c.createBufferSource();noise.buffer=buffer;
+     const filter=c.createBiquadFilter();filter.type='bandpass';filter.frequency.setValueAtTime(1850,now);filter.Q.value=.85;
+     const ng=c.createGain();ng.gain.setValueAtTime(.0001,now);ng.gain.exponentialRampToValueAtTime(.19,now+.006);ng.gain.exponentialRampToValueAtTime(.0001,now+.06);
+     noise.connect(filter);filter.connect(ng);ng.connect(c.destination);noise.start(now);noise.stop(now+.06);
+     const osc=c.createOscillator(), og=c.createGain();osc.type='sine';
+     osc.frequency.setValueAtTime(690,now);osc.frequency.exponentialRampToValueAtTime(205,now+duration);
+     og.gain.setValueAtTime(.0001,now);og.gain.exponentialRampToValueAtTime(.13,now+.008);og.gain.exponentialRampToValueAtTime(.0001,now+duration);
+     osc.connect(og);og.connect(c.destination);osc.start(now);osc.stop(now+duration);
+   }catch{}
+ };
+ // The first legacy click handler uses the global lexical soundFX function; route it to the new pop.
+ try{const legacySoundFX=soundFX;soundFX=function(kind='pop'){if(kind==='pop')return window.__aeroBubblePop();return legacySoundFX(kind);};window.soundFX=function(kind='pop'){if(kind==='pop')return;return legacySoundFX(kind);};}catch{}
+ function showWelcome(){
+   if(!boot||bootStarted)return;bootStarted=true;
+   boot.classList.remove('hide');
+   const card=boot.querySelector('.boot');
+   if(card){
+     card.innerHTML='<div class="finder-mark"><img src="/finder-icon.png" alt="Classic Macintosh Finder icon"></div><h2>Welcome to the 2000s.</h2><p>Your aqua desktop is ready.</p>';
+   }
+   const title=card&&card.querySelector('h2');
+   const reveal=()=>{if(title)requestAnimationFrame(()=>title.classList.add('welcome-visible'));};
+   bootAudio=new Audio('/loading.mp3');bootAudio.preload='auto';bootAudio.volume=.48;
+   const tryPlay=()=>{
+     if(audioPlayed||!bootAudio)return;
+     const result=bootAudio.play();
+     if(result&&typeof result.then==='function'){
+       result.then(()=>{audioPlayed=true;audioPending=false;reveal();}).catch(()=>{audioPending=true;reveal();});
+     }else{audioPlayed=true;reveal();}
+   };
+   tryPlay();
+   if(audioPending){
+     document.addEventListener('pointerdown',()=>{
+       if(!audioPlayed&&bootAudio){bootAudio.play().then(()=>{audioPlayed=true;}).catch(()=>{});}
+     },{once:true,passive:true});
+   }
+   // Reveal the message even when autoplay is blocked by the browser's media policy.
+   setTimeout(reveal,250);
+   setTimeout(()=>boot.classList.add('hide'),3600);
+ }
+ if(boot){
+   boot.classList.remove('hide');
+   if(document.readyState==='complete')setTimeout(showWelcome,250);
+   else window.addEventListener('load',()=>setTimeout(showWelcome,250),{once:true});
+   // Safety fallback: a failed or delayed resource must never trap the site on its boot screen.
+   setTimeout(showWelcome,10000);
+ }
 })();
 </script>
 
