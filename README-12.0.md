@@ -36,3 +36,13 @@ Workspace preferences, notifications, pet selection, and existing local game/pro
 Use a current Chromium-based browser, Firefox, or Safari. Audio playback may require a user gesture. Browser storage limits vary by device. The project includes the original 11.0 assets and Express/Socket.IO server. Test multiplayer/community behavior with your deployment settings before public launch.
 
 The original ten-track playlist's built-in synthesized tracks use a 60-second listening cycle for the loop selector; user-supplied audio files use their actual audio end event. The separate Aero Media Player loops its current file or advances through the selected local-file playlist.
+
+## 12.0.1 Variant repair
+
+- Fixed theme selection with one authoritative controller for all 12 variants.
+- Added complete coordinated styling for Four Colors, Helvetica Aqua Aero, Frutiger Aurora, and Frutiger Glacier.
+- Unified saved theme state across legacy theme controls and restored selection on reload.
+- Expanded previous/next theme navigation to include all 12 variants.
+- Added accessible pressed states to variant buttons.
+
+Variant references: Four Colors uses electric lime, sky blue, hot pink and tangerine orange; Helvetica Aqua Aero emphasizes ocean imagery, aquatic life and glossy liquid visuals; Frutiger Aurora emphasizes aurora light curtains, gradients, bokeh and lens flares; Frutiger Glacier combines winter/ice imagery with glossy technology surfaces.
