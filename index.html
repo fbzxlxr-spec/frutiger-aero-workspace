@@ -621,8 +621,63 @@ body.variant-dorfic{--blue:#df792e;--deep:#9c451c;--aqua:#ffe0a3;--lime:#ffd08a;
  window.soundFX=function(kind='pop'){if(kind==='cheer'||kind==='victory')return cheer();if(kind==='sad'){try{const c=audio(),o=c.createOscillator(),g=c.createGain();o.frequency.value=210;g.gain.value=.06;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.22)}catch{}return}bubble()};if($('#audioTestButton')){const old=$('#audioTestButton'),fresh=old.cloneNode(true);old.replaceWith(fresh);fresh.addEventListener('click',()=>{bubble();$('#audioTestStatus').textContent='Bubble-pop test played. Try the buttons and games too.'})}const stateWatch=new MutationObserver(()=>{if(/GAMEOVER|WIN|VICTORY/i.test($('#stateLabel')?.textContent||''))cheer()});if($('#stateLabel'))stateWatch.observe($('#stateLabel'),{childList:true,subtree:true,characterData:true});
  // Two additional standalone arcade mini-games.
  const cards=$('#gameCards');if(cards){const extra=document.createElement('div');extra.className='tile';extra.innerHTML='<div class="emoji">🫧</div><h3>Bubble Pop Blitz</h3><p>Pop floating bubbles before the timer runs out.</p><button id="launchBubble">Play Bubble Pop Blitz</button>';cards.append(extra);const extra2=document.createElement('div');extra2.className='tile';extra2.innerHTML='<div class="emoji">☁️</div><h3>Cloud Catcher</h3><p>Catch sunshine drops and dodge storm clouds.</p><button id="launchCloud">Play Cloud Catcher</button>';cards.append(extra2)}
- let miniTimer=null,miniScore=0,miniKind='bubble',miniItems=[];function launchMini(kind){miniKind=kind;miniScore=0;miniItems=[];nav('mini40');$('#miniTitle').textContent=kind==='bubble'?'Bubble Pop Blitz':'Cloud Catcher';$('#miniInfo').textContent='Tap the good objects. Avoid the storm clouds!';$('#miniScore').textContent='Score: 0';const c=$('#miniCanvas'),g=c.getContext('2d');let left=30;clearInterval(miniTimer);function frame(){g.clearRect(0,0,c.width,c.height);g.fillStyle=kind==='bubble'?'#a8efff':'#bde9ff';g.fillRect(0,0,c.width,c.height);g.fillStyle='#fff';for(let x=0;x<c.width;x+=80){g.beginPath();g.arc(x+20,40,13,0,Math.PI*2);g.fill()}if(Math.random()<.06)miniItems.push({x:Math.random()*c.width,y:Math.random()*c.height*.65,r:18,bad:Math.random()<.22});miniItems.forEach(o=>{g.beginPath();g.arc(o.x,o.y,o.r,0,Math.PI*2);g.fillStyle=o.bad?'#73808b':kind==='bubble'?'#48cbed':'#ffd75b';g.fill();g.strokeStyle='#fff';g.lineWidth=3;g.stroke()});g.fillStyle='#17608a';g.font='bold 18px Tahoma';g.fillText('Time: '+left+'s',14,28)}frame();miniTimer=setInterval(()=>{left--;frame();if(left<=0){clearInterval(miniTimer);$('#miniInfo').textContent='Round complete! Final score: '+miniScore+' 🏆';window.soundFX('cheer')}},1000);c.onclick=e=>{const r=c.getBoundingClientRect(),x=(e.clientX-r.left)*c.width/r.width,y=(e.clientY-r.top)*c.height/r.height;let i=miniItems.findIndex(o=>Math.hypot(o.x-x,o.y-y)<o.r+8);if(i>=0){miniScore+=miniItems[i].bad?-2:1;miniItems.splice(i,1);$('#miniScore').textContent='Score: '+miniScore;window.soundFX('pop')}}}
- $('#launchBubble')?.addEventListener('click',()=>launchMini('bubble'));$('#launchCloud')?.addEventListener('click',()=>launchMini('cloud'));$('#miniBack').onclick=()=>{clearInterval(miniTimer);nav('games')};$('#miniRestart').onclick=()=>launchMini(miniKind);
+
+ let miniRAF=0,miniScore=0,miniKind='bubble',miniItems=[],miniRunning=false,miniLast=0,miniTime=45,miniCombo=0,miniPointer={x:380,y:365};
+ function miniDraw(){
+   const c=$('#miniCanvas'),g=c.getContext('2d'),w=c.width,h=c.height;
+   const sky=g.createLinearGradient(0,0,0,h);sky.addColorStop(0,miniKind==='bubble'?'#65c9f4':'#8bdcff');sky.addColorStop(.65,'#dffaff');sky.addColorStop(1,miniKind==='bubble'?'#49c6bd':'#a4e9c0');g.fillStyle=sky;g.fillRect(0,0,w,h);
+   // layered soft clouds and light rays
+   g.fillStyle='#ffffff70';for(let i=0;i<7;i++){let x=(i*145-miniTime*8+900)%980,y=55+(i%3)*36;g.beginPath();g.ellipse(x,y,48,13,0,0,7);g.ellipse(x-20,y+2,23,11,0,0,7);g.ellipse(x+20,y-5,25,14,0,0,7);g.fill()}
+   miniItems.forEach(o=>{
+     g.save();g.shadowColor=o.bad?'#314b66':'#ffffff';g.shadowBlur=13;
+     if(miniKind==='bubble'){
+       const gr=g.createRadialGradient(o.x-o.r*.35,o.y-o.r*.4,2,o.x,o.y,o.r);gr.addColorStop(0,'#fff');gr.addColorStop(.28,o.bad?'#e6a4a8':'#c8fbff');gr.addColorStop(1,o.bad?'#a92e59':'#159bd5');
+       g.fillStyle=gr;g.beginPath();g.arc(o.x,o.y,o.r,0,Math.PI*2);g.fill();g.strokeStyle='#fff';g.lineWidth=3;g.stroke();g.fillStyle='#ffffffaa';g.beginPath();g.ellipse(o.x-o.r*.3,o.y-o.r*.35,o.r*.18,o.r*.3,-.5,0,7);g.fill();
+     }else{
+       if(o.bad){g.fillStyle='#60778c';g.beginPath();g.arc(o.x,o.y,o.r,0,7);g.arc(o.x+o.r*.6,o.y+5,o.r*.72,0,7);g.fill();g.fillStyle='#fff';g.font='bold 17px Tahoma';g.fillText('⚡',o.x-9,o.y+6)}
+       else{g.fillStyle='#ffe37c';g.beginPath();g.arc(o.x,o.y,o.r*.7,0,7);g.fill();g.strokeStyle='#fff7c7';g.lineWidth=5;g.beginPath();g.moveTo(o.x,o.y-o.r-8);g.lineTo(o.x,o.y+o.r+8);g.stroke();g.fillStyle='#fff';g.font='bold 17px Tahoma';g.fillText('✦',o.x-8,o.y+6)}
+     }g.restore();
+   });
+   if(miniKind==='cloud'){
+     g.save();g.translate(miniPointer.x,h-48);g.shadowColor='#0876a8';g.shadowBlur=12;g.fillStyle='#f2a34c';g.beginPath();g.roundRect(-48,-14,96,25,12);g.fill();g.fillStyle='#fff';g.beginPath();g.ellipse(0,-18,39,19,0,0,7);g.ellipse(-24,-12,21,14,0,0,7);g.ellipse(24,-12,21,14,0,0,7);g.fill();g.restore();
+   }
+   g.fillStyle='#07517e';g.font='bold 20px Tahoma';g.fillText(miniKind==='bubble'?'BUBBLE POP BLITZ':'CLOUD CATCHER',16,28);
+   g.font='bold 17px Tahoma';g.fillText('TIME '+Math.ceil(miniTime)+'s',w-125,28);g.fillText('SCORE '+miniScore,16,55);g.fillText('COMBO x'+Math.max(1,miniCombo),w-145,55);
+ }
+ function finishMini(){miniRunning=false;cancelAnimationFrame(miniRAF);$('#miniInfo').textContent=(miniScore>=25?'Amazing run!':miniScore>=12?'Great catching!':'Round complete!')+' Final score: '+miniScore+' • Best streak: x'+Math.max(1,miniCombo);window.soundFX?.('cheer')}
+ function launchMini(kind){
+   miniKind=kind;miniScore=0;miniItems=[];miniTime=45;miniCombo=0;miniPointer={x:380,y:365};miniRunning=true;miniLast=0;
+   nav('mini40');$('#miniTitle').textContent=kind==='bubble'?'Bubble Pop Blitz':'Cloud Catcher';
+   $('#miniInfo').textContent=kind==='bubble'?'Pop glowing aqua bubbles. Gold bubbles are worth extra; storm bubbles break your streak.':'Move your basket to catch sunshine drops. Dodge storm clouds and build a catching streak.';
+   $('#miniScore').textContent='Score: 0';const c=$('#miniCanvas');c.style.touchAction='none';
+   const frame=t=>{
+     if(!miniRunning)return;const dt=Math.min(.04,(t-miniLast)/1000||.016);miniLast=t;miniTime-=dt;
+     if(Math.random()<dt*(miniKind==='bubble'?2.8:2.1))miniItems.push({x:30+Math.random()*(c.width-60),y:miniKind==='bubble'?c.height+25:45+Math.random()*150,r:miniKind==='bubble'?13+Math.random()*12:12+Math.random()*8,bad:Math.random()<(miniKind==='bubble'?.16:.23),gold:Math.random()<.12,vx:(Math.random()-.5)*70,vy:miniKind==='bubble'?-(55+Math.random()*65):(55+Math.random()*70)});
+     miniItems.forEach(o=>{o.x+=o.vx*dt;o.y+=o.vy*dt;if(miniKind==='bubble')o.x+=Math.sin((t/500)+o.y/35)*22*dt});
+     if(miniKind==='bubble')miniItems=miniItems.filter(o=>o.y>-40);else miniItems=miniItems.filter(o=>o.y<c.height+35);
+     if(miniTime<=0){miniTime=0;miniDraw();finishMini();return}
+     miniDraw();miniRAF=requestAnimationFrame(frame);
+   };miniDraw();miniRAF=requestAnimationFrame(frame);
+ }
+ function miniHit(x,y){
+   if(!miniRunning)return;
+   if(miniKind==='bubble'){
+     let idx=-1;for(let i=miniItems.length-1;i>=0;i--)if(Math.hypot(miniItems[i].x-x,miniItems[i].y-y)<miniItems[i].r+7){idx=i;break}
+     if(idx>=0){const o=miniItems.splice(idx,1)[0];if(o.bad){miniCombo=0;miniScore=Math.max(0,miniScore-3);$('#miniInfo').textContent='Storm bubble! Streak reset.';window.soundFX?.('sad')}else{miniCombo++;miniScore+=o.gold?5:1+(miniCombo>=5?1:0);window.soundFX?.('pop')}}
+     else{miniCombo=0}
+   }else{
+     miniPointer.x=Math.max(50,Math.min(710,x));
+     let idx=-1;for(let i=miniItems.length-1;i>=0;i--)if(Math.hypot(miniItems[i].x-miniPointer.x,miniItems[i].y-(cHeight()-48))<miniItems[i].r+42){idx=i;break}
+     if(idx>=0){const o=miniItems.splice(idx,1)[0];if(o.bad){miniCombo=0;miniScore=Math.max(0,miniScore-4);$('#miniInfo').textContent='Thundercloud! Keep your basket clear.';window.soundFX?.('sad')}else{miniCombo++;miniScore+=o.gold?5:2+(miniCombo>=4?1:0);window.soundFX?.('pop')}}
+   }
+   $('#miniScore').textContent='Score: '+miniScore;
+ }
+ function cHeight(){return $('#miniCanvas').height}
+ const cMini=$('#miniCanvas');
+ cMini.addEventListener('pointerdown',e=>{if(!miniRunning)return;const r=cMini.getBoundingClientRect(),x=(e.clientX-r.left)*cMini.width/r.width,y=(e.clientY-r.top)*cMini.height/r.height;if(miniKind==='cloud'){miniPointer.x=x;miniDraw()}else miniHit(x,y)});
+ cMini.addEventListener('pointermove',e=>{if(!miniRunning||miniKind!=='cloud')return;const r=cMini.getBoundingClientRect();miniPointer.x=(e.clientX-r.left)*cMini.width/r.width});
+ cMini.addEventListener('pointerup',e=>{if(!miniRunning||miniKind!=='cloud')return;const r=cMini.getBoundingClientRect(),x=(e.clientX-r.left)*cMini.width/r.width;miniPointer.x=x;miniHit(x,0)});
+  $('#launchBubble')?.addEventListener('click',()=>launchMini('bubble'));$('#launchCloud')?.addEventListener('click',()=>launchMini('cloud'));$('#miniBack').onclick=()=>{miniRunning=false;cancelAnimationFrame(miniRAF);nav('games')};$('#miniRestart').onclick=()=>launchMini(miniKind);
 })();
 </script>
 
@@ -791,24 +846,89 @@ if(typeof setState==='function'){const originalSetState=setState;setState=functi
 const dash=$('#aeroDashPage');if(dash){const content=dash.querySelector('.content');const oldNodes=[...content.children];oldNodes.forEach(n=>{if(!n.id||!['dashHomeHub','dashGameHub'].includes(n.id))n.classList.add('dash-legacy-hidden')});
 const hub=document.createElement('div');hub.id='dashHomeHub';hub.innerHTML=`<section class="dash-hero"><div class="dash-hero-copy"><small>FRUTIGER AERO ARCADE • 2008</small><h1>AERO DASH!</h1><p>Jump through glossy skies, collect sun-orbs, and unlock your own Aero collection.</p><div class="dash-hero-actions"><button id="dashOpenLevels">▶ Main Levels</button><button id="dashOpenQuests">✧ Quests & Rewards</button></div></div><div class="dash-hero-orb">◈</div></section><div class="dash-tabs"><button data-dash-tab="levels" class="active">Main Levels</button><button data-dash-tab="quests">Quests & Chests</button><button data-dash-tab="icons">Icon Garage</button></div><section id="dashLevelsPanel" class="dash-panel"><div class="dash-section-head"><div><small>COURSE SELECT</small><h2>Main Levels</h2></div><span id="dashProgressLabel">0 / 10 cleared</span></div><div id="dashLevelGrid" class="dash-level-grid"></div><p class="dash-note">22 courses are listed. The first 10 are playable now; the remaining 12 are locked for future updates.</p></section><section id="dashQuestsPanel" class="dash-panel" hidden><div class="dash-section-head"><div><small>YOUR DAILY ROUTINE</small><h2>Quests & Chests</h2></div><span id="dashCoinCount">0 ✦</span></div><div class="dash-chest-row"><article class="dash-chest"><div>🕒</div><b>Hourly Chest</b><p id="hourChestTimer">Ready to open</p><button id="hourChest">Open Chest</button></article><article class="dash-chest daily"><div>🎁</div><b>Daily Chest</b><p id="dailyChestTimer">Ready to open</p><button id="dailyChest">Open Chest</button></article></div><div id="dashQuestList" class="dash-quest-list"></div></section><section id="dashIconsPanel" class="dash-panel" hidden><div class="dash-section-head"><div><small>PLAYER CUSTOMIZATION</small><h2>Icon Garage</h2></div><span>Unlock icons by clearing levels</span></div><div id="dashIconGrid" class="dash-icon-grid"></div></section></div>`;
 const gameHub=document.createElement('section');gameHub.id='dashGameHub';gameHub.hidden=true;gameHub.innerHTML='<div class="dash-game-top"><button id="dashBackHub">← Level Select</button><div><b id="dashActiveName">Coastal Flight</b><small id="dashRunStats">0 / 100%</small></div><button id="dashRestart">↻ Restart</button></div><canvas id="dashGameCanvas" width="960" height="420" aria-label="Aero Dash game canvas"></canvas><div class="dash-game-controls"><button id="dashJump">⬆ Jump</button><button id="dashPauseNew">Ⅱ Pause</button><span id="dashRunMessage">Tap the screen or press Space to jump.</span></div></section>';
-content.insertBefore(gameHub,content.firstChild);content.insertBefore(hub,gameHub);
+content.insertBefore(gameHub,content.firstChild);content.insertBefore(hub,gameHub);gameHub.insertAdjacentHTML('afterbegin',`<div class="dash-mode-bar" role="group" aria-label="Aero Dash game mode"><button type="button" data-aero-mode="cube" class="selected" aria-pressed="true">▣ Cube</button><button type="button" data-aero-mode="ship" aria-pressed="false">✈ Ship</button><button type="button" data-aero-mode="wave" aria-pressed="false">〽 Wave</button><span id="dashModeHint">Cube: tap to jump</span></div>`);
 const levelNames=['Coastal Flight','Blue Horizon','Sunbeam Sprint','Bubble Garden','Coral Current','Cloudtop Cruise','Emerald Escape','Aqua Overdrive','Sunset Skydive','Aurora Rush','Crystal Coast','Tropical Circuit','Skyline Splash','Lagoon Lights','Prism Paradise','Oceanic Orbit','Neon Canopy','Glacier Glide','Solar Speedway','Deep Blue Dash','Eco Future','Final Horizon'];
 const levelColors=[['#62d7ff','#dffcff','#74dc9c'],['#2799df','#c6f5ff','#75d6cb'],['#ffe28d','#fff6d9','#75d99a'],['#65caff','#e6ffff','#59d5c4'],['#31b8e6','#c7f9ff','#45bca9'],['#75caff','#eefcff','#83d68b'],['#6ad3a7','#f1ffdc','#66bd79'],['#19a6cf','#c9faff','#35c3ad'],['#ffbd8c','#fff1d7','#69c6a4'],['#a4a0ff','#e8f5ff','#6ed6ca']];
 const iconSet=[{id:'orb',name:'Aqua Orb',glyph:'●',unlock:0},{id:'fish',name:'Bubble Fish',glyph:'🐠',unlock:1},{id:'star',name:'Sun Star',glyph:'✦',unlock:2},{id:'leaf',name:'Eco Leaf',glyph:'❧',unlock:3},{id:'heart',name:'Gel Heart',glyph:'♥',unlock:4},{id:'comet',name:'Blue Comet',glyph:'☄',unlock:5},{id:'crystal',name:'Crystal',glyph:'◆',unlock:6},{id:'crown',name:'Aero Crown',glyph:'♛',unlock:7},{id:'planet',name:'Mini Planet',glyph:'◉',unlock:8},{id:'aurora',name:'Aurora',glyph:'✧',unlock:9}];
 const saveKey='aeroDash53Save';let save={cleared:[],coins:0,icon:'orb',quests:{},hourChest:0,dailyChest:0,plays:0,jumps:0,orbs:0};try{save={...save,...JSON.parse(localStorage.getItem(saveKey)||'{}')}}catch{};save.cleared=Array.isArray(save.cleared)?save.cleared:[];function persist(){localStorage.setItem(saveKey,JSON.stringify(save));renderHub()}
-const quests=[{id:'clear1',name:'First Flight',desc:'Clear any one main level',goal:1,reward:35,type:'clear'},{id:'orbs',name:'Sunshine Collector',desc:'Collect 12 sun-orbs',goal:12,reward:45,type:'orbs'},{id:'jumps',name:'Jump Start',desc:'Jump 25 times',goal:25,reward:30,type:'jumps'},{id:'plays',name:'Frequent Flyer',desc:'Play 3 levels',goal:3,reward:40,type:'plays'}];
-function qProgress(q){if(q.type==='clear')return save.cleared.length;if(q.type==='orbs')return save.orbs;if(q.type==='jumps')return save.jumps;return save.plays}function renderHub(){const grid=$('#dashLevelGrid');if(!grid)return;grid.innerHTML='';levelNames.forEach((name,i)=>{const unlocked=i<10,cleared=save.cleared.includes(i);const card=document.createElement('button');card.dataset.levelIndex=i;card.className='dash-level-card'+(cleared?' cleared':'')+(!unlocked?' locked':'');card.disabled=!unlocked;card.innerHTML=`<span class="dash-level-number">${String(i+1).padStart(2,'0')}</span><span class="dash-level-art" style="--c1:${levelColors[i%10][0]};--c2:${levelColors[i%10][1]};--c3:${levelColors[i%10][2]}"><i></i><b>◈</b></span><strong>${name}</strong><small>${!unlocked?'🔒 Coming soon':cleared?'✓ Course cleared':'Tap to play'}</small>`;if(unlocked)card.addEventListener('click',()=>startLevel(i));grid.append(card)});$('#dashProgressLabel').textContent=save.cleared.length+' / 10 cleared';$('#dashCoinCount').textContent=save.coins+' ✦';const ql=$('#dashQuestList');ql.innerHTML='';quests.forEach(q=>{const p=Math.min(q.goal,qProgress(q));const claimed=!!save.quests[q.id];const done=p>=q.goal;const row=document.createElement('article');row.className='dash-quest';row.innerHTML=`<div><b>${q.name}</b><small>${q.desc}</small><div class="dash-progress"><i style="width:${p/q.goal*100}%"></i></div><small>${p} / ${q.goal} • Reward ${q.reward} ✦</small></div><button ${!done||claimed?'disabled':''}>${claimed?'Claimed':done?'Claim reward':'In progress'}</button>`;row.querySelector('button').addEventListener('click',()=>{if(done&&!claimed){save.quests[q.id]=true;save.coins+=q.reward;persist()}});ql.append(row)});const ig=$('#dashIconGrid');ig.innerHTML='';iconSet.forEach(it=>{const unlocked=it.unlock===0||save.cleared.length>=it.unlock;const b=document.createElement('button');b.className='dash-icon-choice'+(save.icon===it.id?' selected':'')+(!unlocked?' locked':'');b.disabled=!unlocked;b.innerHTML=`<span>${it.glyph}</span><b>${it.name}</b><small>${unlocked?(save.icon===it.id?'Equipped':'Equip'):'Clear '+it.unlock+' levels'}</small>`;b.addEventListener('click',()=>{save.icon=it.id;persist()});ig.append(b)})}
+const quests=[{id:'clear1',name:'First Flight',desc:'Clear any one main level',goal:1,reward:35,type:'clear'},{id:'orbs',name:'Sunshine Collector',desc:'Collect 12 sun-orbs',goal:12,reward:45,type:'orbs'},{id:'jumps',name:'Jump Start',desc:'Jump 25 times',goal:25,reward:30,type:'jumps'},{id:'plays',name:'Frequent Flyer',desc:'Play 3 levels',goal:3,reward:40,type:'plays'},{id:'pilot',name:'Pilot License',desc:'Clear 5 levels to unlock Ship Mode',goal:5,reward:25,type:'clear',modeReward:'ship'},{id:'wavequest',name:'Wave School',desc:'Collect 30 sun-orbs to unlock Wave Mode',goal:30,reward:35,type:'orbs',modeReward:'wave'}];
+function qProgress(q){if(q.type==='clear')return save.cleared.length;if(q.type==='orbs')return save.orbs;if(q.type==='jumps')return save.jumps;return save.plays}function renderHub(){const grid=$('#dashLevelGrid');if(!grid)return;grid.innerHTML='';levelNames.forEach((name,i)=>{const unlocked=i<10,cleared=save.cleared.includes(i);const card=document.createElement('button');card.dataset.levelIndex=i;card.className='dash-level-card'+(cleared?' cleared':'')+(!unlocked?' locked':'');card.disabled=!unlocked;card.innerHTML=`<span class="dash-level-number">${String(i+1).padStart(2,'0')}</span><span class="dash-level-art" style="--c1:${levelColors[i%10][0]};--c2:${levelColors[i%10][1]};--c3:${levelColors[i%10][2]}"><i></i><b>◈</b></span><strong>${name}</strong><small>${!unlocked?'🔒 Coming soon':cleared?'✓ Course cleared':'Tap to play'}</small>`;if(unlocked)card.addEventListener('click',()=>startLevel(i));grid.append(card)});$('#dashProgressLabel').textContent=save.cleared.length+' / 10 cleared';$('#dashCoinCount').textContent=save.coins+' ✦';const ql=$('#dashQuestList');ql.innerHTML='';quests.forEach(q=>{const p=Math.min(q.goal,qProgress(q));const claimed=!!save.quests[q.id];const done=p>=q.goal;const row=document.createElement('article');row.className='dash-quest';row.innerHTML=`<div><b>${q.name}</b><small>${q.desc}</small><div class="dash-progress"><i style="width:${p/q.goal*100}%"></i></div><small>${p} / ${q.goal} • Reward ${q.reward} ✦</small></div><button ${!done||claimed?'disabled':''}>${claimed?'Claimed':done?'Claim reward':'In progress'}</button>`;row.querySelector('button').addEventListener('click',()=>{if(done&&!claimed){save.quests[q.id]=true;save.coins+=q.reward;if(q.modeReward){modeUnlocked[q.modeReward]=true;localStorage.setItem('aeroDashModesUnlocked',JSON.stringify(modeUnlocked));updateModeButtons()}persist()}});ql.append(row)});const ig=$('#dashIconGrid');ig.innerHTML='';iconSet.forEach(it=>{const unlocked=it.unlock===0||save.cleared.length>=it.unlock;const b=document.createElement('button');b.className='dash-icon-choice'+(save.icon===it.id?' selected':'')+(!unlocked?' locked':'');b.disabled=!unlocked;b.innerHTML=`<span>${it.glyph}</span><b>${it.name}</b><small>${unlocked?(save.icon===it.id?'Equipped':'Equip'):'Clear '+it.unlock+' levels'}</small>`;b.addEventListener('click',()=>{save.icon=it.id;persist()});ig.append(b)});
+ [{id:'ship',name:'Ship Mode',glyph:'✈',price:120,unlock:4},{id:'wave',name:'Wave Mode',glyph:'〽',price:180,unlock:7}].forEach(it=>{
+   const unlocked=!!modeUnlocked[it.id];const b=document.createElement('button');b.className='dash-icon-choice'+(unlocked?' selected':'');
+   b.innerHTML=`<span>${it.glyph}</span><b>${it.name}</b><small>${unlocked?'Unlocked':`Unlock: clear ${it.unlock} levels or buy for ${it.price} ✦`}</small>`;
+   b.addEventListener('click',()=>{if(modeUnlocked[it.id]){chooseDashMode(it.id);return}
+     if(save.cleared.length>=it.unlock){modeUnlocked[it.id]=true}
+     else if(save.coins>=it.price){save.coins-=it.price;modeUnlocked[it.id]=true}
+     else {$('#dashRunMessage').textContent=`Need ${it.price} ✦ or clear ${it.unlock} levels.`;return}
+     localStorage.setItem('aeroDashModesUnlocked',JSON.stringify(modeUnlocked));updateModeButtons();persist();
+   });ig.append(b)
+ })}
 function switchTab(tab){$$('[data-dash-tab]').forEach(b=>b.classList.toggle('active',b.dataset.dashTab===tab));['levels','quests','icons'].forEach(t=>$('#dash'+t[0].toUpperCase()+t.slice(1)+'Panel').hidden=t!==tab)}$$('[data-dash-tab]').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.dashTab)));$('#dashOpenLevels').onclick=()=>switchTab('levels');$('#dashOpenQuests').onclick=()=>switchTab('quests');
-function chest(which){const now=Date.now(),key=which==='hour'?'hourChest':'dailyChest',period=which==='hour'?3600000:86400000;if(now-(save[key]||0)<period)return;save[key]=now;const reward=which==='hour'?15+Math.floor(Math.random()*16):60+Math.floor(Math.random()*41);save.coins+=reward;persist();const b=$('#'+(which==='hour'?'hourChest':'dailyChest'));b.textContent='+'+reward+' ✦ collected';b.disabled=true;window.soundFX?.('victory')}
+function chest(which){const now=Date.now(),key=which==='hour'?'hourChest':'dailyChest',period=which==='hour'?3600000:86400000;if(now-(save[key]||0)<period)return;save[key]=now;const reward=which==='hour'?15+Math.floor(Math.random()*16):60+Math.floor(Math.random()*41);save.coins+=reward;let bonus='';const candidates=['ship','wave'].filter(m=>!modeUnlocked[m]);if(candidates.length&&Math.random()<(which==='daily'?.24:.10)){const prize=candidates[Math.floor(Math.random()*candidates.length)];modeUnlocked[prize]=true;localStorage.setItem('aeroDashModesUnlocked',JSON.stringify(modeUnlocked));bonus=' + '+(prize==='ship'?'Ship':'Wave')+' Mode unlocked!';updateModeButtons()}persist();const b=$('#'+(which==='hour'?'hourChest':'dailyChest'));b.textContent='+'+reward+' ✦'+(bonus?' • bonus mode':'')+' collected';b.disabled=true;if(bonus)$('#dashRunMessage').textContent=bonus;window.soundFX?.('victory')}
 $('#hourChest').onclick=()=>chest('hour');$('#dailyChest').onclick=()=>chest('daily');function refreshChests(){[['hour','hourChestTimer','hourChest',3600000],['daily','dailyChestTimer','dailyChest',86400000]].forEach(([kind,label,button,period])=>{const remaining=period-(Date.now()-(save[kind+'Chest']||0));const ready=remaining<=0;$('#'+label).textContent=ready?'Ready to open':`Next chest in ${Math.ceil(remaining/60000)} min`;$('#'+button).disabled=!ready; if(ready)$('#'+button).textContent='Open Chest'})}refreshChests();setInterval(refreshChests,30000);
 const gc=$('#dashGameCanvas'),gctx=gc.getContext('2d');let activeLevel=0,gameRun=false,gameRAF=0,player={x:150,y:290,vy:0,ground:true},obstacles=[],orbs=[],distance=0,jumpHeld=false,paused=false,lastFrame=0;
+let dashMode='cube',modeHeld=false,modeUnlocked={cube:true,ship:false,wave:false};
+try{const m=JSON.parse(localStorage.getItem('aeroDashModesUnlocked')||'{}');modeUnlocked={...modeUnlocked,...m}}catch{}
+const modeButtons=[...gameHub.querySelectorAll('[data-aero-mode]')];
+function updateModeButtons(){
+ modeButtons.forEach(b=>{const active=b.dataset.aeroMode===dashMode;b.classList.toggle('selected',active);b.setAttribute('aria-pressed',String(active));b.disabled=!modeUnlocked[b.dataset.aeroMode]});
+ const hint=$('#dashModeHint');if(hint)hint.textContent=dashMode==='cube'?'Cube: tap to jump':dashMode==='ship'?'Ship: hold to rise, release to descend':'Wave: hold to climb, release to dive';
+}
+function chooseDashMode(m){
+ if(!modeUnlocked[m]){const hint=$('#dashRunMessage');if(hint)hint.textContent='Unlock this icon in the Icon Garage first.';return}
+ dashMode=m;updateModeButtons();if(gameRun)restart();
+}
+modeButtons.forEach(b=>b.addEventListener('click',()=>chooseDashMode(b.dataset.aeroMode)));
+function setModeHold(v){modeHeld=v}
+
 function makeCourse(){player={x:150,y:290,vy:0,ground:true};distance=0;obstacles=[];orbs=[];for(let i=0;i<13;i++){const x=570+i*350+Math.random()*110;obstacles.push({x,w:34+Math.random()*10,h:36+Math.random()*25})}for(let i=0;i<18;i++)orbs.push({x:470+i*240,y:220-Math.sin(i)*55,got:false});$('#dashRunStats').textContent='0 / 100%';$('#dashRunMessage').textContent='Tap the screen or press Space to jump.';drawCourse()}
 function glossySpike(x,y,w,h){gctx.save();gctx.shadowColor='#bdf8ff';gctx.shadowBlur=14;const gr=gctx.createLinearGradient(x,y-h,x+w,y);gr.addColorStop(0,'#f8ffff');gr.addColorStop(.3,'#9df2ff');gr.addColorStop(.75,'#24a9df');gr.addColorStop(1,'#0877b5');gctx.beginPath();gctx.moveTo(x,y);gctx.lineTo(x+w/2,y-h);gctx.lineTo(x+w,y);gctx.closePath();gctx.fillStyle=gr;gctx.fill();gctx.lineWidth=2;gctx.strokeStyle='#fff';gctx.stroke();gctx.beginPath();gctx.moveTo(x+w/2,y-h+8);gctx.lineTo(x+w/2,y-5);gctx.strokeStyle='#fff';gctx.stroke();gctx.restore()}
 function drawCourse(){const L=levelColors[activeLevel%10];let sky=gctx.createLinearGradient(0,0,0,420);sky.addColorStop(0,L[0]);sky.addColorStop(.62,L[1]);sky.addColorStop(.63,L[2]);sky.addColorStop(1,'#d9f8a7');gctx.fillStyle=sky;gctx.fillRect(0,0,960,420);for(let i=0;i<9;i++){let xx=(i*153-distance*.12)%1100;gctx.fillStyle='#ffffff66';gctx.beginPath();gctx.ellipse(xx,70+(i%3)*25,45,13,0,0,Math.PI*2);gctx.fill()}for(let i=0;i<18;i++){let bx=(i*72-distance*.22)%1040;gctx.fillStyle='#ffffff24';gctx.beginPath();gctx.arc(bx,160+(i%4)*38,4+i%3*3,0,Math.PI*2);gctx.fill()}gctx.fillStyle='#ffffffb8';gctx.fillRect(0,338,960,5);let floor=gctx.createLinearGradient(0,342,0,420);floor.addColorStop(0,'#8be6c2');floor.addColorStop(1,'#39a77d');gctx.fillStyle=floor;gctx.fillRect(0,343,960,77);obstacles.forEach(o=>glossySpike(o.x-distance,338,o.w,o.h));orbs.forEach(o=>{if(o.got)return;const x=o.x-distance;if(x<-30||x>990)return;gctx.save();gctx.shadowColor='#fff49b';gctx.shadowBlur=16;const gr=gctx.createRadialGradient(x-5,o.y-5,2,x,o.y,15);gr.addColorStop(0,'#fff');gr.addColorStop(.4,'#fff58c');gr.addColorStop(1,'#e99a20');gctx.fillStyle=gr;gctx.beginPath();gctx.arc(x,o.y,13,0,Math.PI*2);gctx.fill();gctx.strokeStyle='#fff';gctx.stroke();gctx.restore()});drawPlayer();gctx.fillStyle='#07517e';gctx.font='bold 19px Segoe UI,Tahoma';gctx.fillText('DISTANCE  '+Math.min(100,Math.floor(distance/38))+'%',22,32);gctx.fillText(levelNames[activeLevel],740,32)}
-function drawPlayer(){const it=iconSet.find(x=>x.id===save.icon)||iconSet[0];gctx.save();gctx.shadowColor='#fff';gctx.shadowBlur=18;const gr=gctx.createRadialGradient(player.x-7,player.y-8,2,player.x+14,player.y+14,27);gr.addColorStop(0,'#fff');gr.addColorStop(.4,'#9df4ff');gr.addColorStop(1,'#087fc3');gctx.fillStyle=gr;gctx.beginPath();gctx.roundRect(player.x,player.y,30,30,9);gctx.fill();gctx.strokeStyle='#fff';gctx.lineWidth=2;gctx.stroke();gctx.shadowBlur=0;gctx.fillStyle='#fff';gctx.font='bold 18px Segoe UI';gctx.textAlign='center';gctx.textBaseline='middle';gctx.fillText(it.glyph,player.x+15,player.y+15);gctx.restore()}
+function drawPlayer(){
+ const it=iconSet.find(x=>x.id===save.icon)||iconSet[0];gctx.save();gctx.shadowColor='#fff';gctx.shadowBlur=17;
+ const grad=gctx.createLinearGradient(player.x,player.y,player.x+30,player.y+30);grad.addColorStop(0,'#fff');grad.addColorStop(.42,'#9df4ff');grad.addColorStop(1,'#087fc3');gctx.fillStyle=grad;gctx.strokeStyle='#fff';gctx.lineWidth=2;
+ if(dashMode==='ship'){
+   gctx.beginPath();gctx.moveTo(player.x+30,player.y+15);gctx.lineTo(player.x+4,player.y+2);gctx.lineTo(player.x+8,player.y+15);gctx.lineTo(player.x+4,player.y+28);gctx.closePath();gctx.fill();gctx.stroke();
+   gctx.fillStyle='#ffe58b';gctx.beginPath();gctx.moveTo(player.x+5,player.y+11);gctx.lineTo(player.x-7,player.y+15);gctx.lineTo(player.x+5,player.y+19);gctx.fill();
+ }else if(dashMode==='wave'){
+   gctx.beginPath();gctx.moveTo(player.x+3,player.y+3);gctx.lineTo(player.x+29,player.y+27);gctx.lineTo(player.x+21,player.y+29);gctx.lineTo(player.x+2,player.y+10);gctx.closePath();gctx.fill();gctx.stroke();
+ }else{
+   gctx.beginPath();gctx.roundRect(player.x,player.y,30,30,8);gctx.fill();gctx.stroke();gctx.shadowBlur=0;gctx.fillStyle='#fff';gctx.font='bold 18px Segoe UI';gctx.textAlign='center';gctx.textBaseline='middle';gctx.fillText(it.glyph,player.x+15,player.y+15);
+ }
+ gctx.restore();
+}
 function finishDash(won){if(!gameRun)return;gameRun=false;cancelAnimationFrame(gameRAF);if(won){if(!save.cleared.includes(activeLevel))save.cleared.push(activeLevel);save.coins+=25;$('#dashRunMessage').textContent='Course cleared! +25 ✦';persist();setTimeout(()=>{showResult(true);win.querySelector('.result-description').textContent=levelNames[activeLevel]+' complete! You earned 25 Aero Coins.';},250)}else{setTimeout(()=>{showResult(false);lose.querySelector('.result-description').textContent='You hit a glossy spike. Try the course again!';},250)}}
-function step(t){if(!gameRun||paused)return;const dt=Math.min(2,(t-lastFrame)/16.67||1);lastFrame=t;const speed=(4.2+activeLevel*.18)*dt;player.vy+=.62*dt;player.y+=player.vy*dt;if(player.y>=308){player.y=308;player.vy=0;player.ground=true}distance+=speed;for(const o of obstacles){const ox=o.x-distance;if(ox<player.x+26&&ox+o.w>player.x+4&&player.y+28>338-o.h){finishDash(false);return}}for(const o of orbs){const ox=o.x-distance;if(!o.got&&Math.hypot(ox-(player.x+15),o.y-(player.y+15))<27){o.got=true;save.orbs++;save.coins+=2}}$('#dashRunStats').textContent=Math.min(100,Math.floor(distance/38))+' / 100%';if(distance>=3800){finishDash(true);return}drawCourse();gameRAF=requestAnimationFrame(step)}
-function startLevel(i){activeLevel=i;hub.hidden=true;gameHub.hidden=false;$('#dashActiveName').textContent=levelNames[i];makeCourse();gameRun=true;paused=false;lastFrame=performance.now();save.plays++;persist();gameRAF=requestAnimationFrame(step)}function jump(){if(!gameRun||paused)return;if(player.ground){player.vy=-13.2;player.ground=false;save.jumps++;window.soundFX?.('pop')}}function restart(){cancelAnimationFrame(gameRAF);makeCourse();gameRun=true;paused=false;lastFrame=performance.now();gameRAF=requestAnimationFrame(step)}$('#dashBackHub').onclick=()=>{gameRun=false;cancelAnimationFrame(gameRAF);gameHub.hidden=true;hub.hidden=false;renderHub()};$('#dashRestart').onclick=restart;$('#dashJump').onclick=jump;$('#dashPauseNew').onclick=()=>{if(!gameRun)return;paused=!paused;$('#dashPauseNew').textContent=paused?'▶ Resume':'Ⅱ Pause';if(!paused){lastFrame=performance.now();gameRAF=requestAnimationFrame(step)}else cancelAnimationFrame(gameRAF)};gc.addEventListener('pointerdown',jump);document.addEventListener('keydown',e=>{if(e.code==='Space'&&!gameHub.hidden){e.preventDefault();jump()}});$('#dashGameHub').addEventListener('click',e=>{if(e.target.closest('[data-result-action]'))return});renderHub();
+function step(t){
+ if(!gameRun||paused)return;
+ const dt=Math.min(2,(t-lastFrame)/16.67||1);lastFrame=t;
+ const speed=(4.2+activeLevel*.18)*dt;
+ if(dashMode==='cube'){
+   player.vy+=.62*dt;player.y+=player.vy*dt;
+   if(player.y>=308){player.y=308;player.vy=0;player.ground=true}
+ }else if(dashMode==='ship'){
+   player.vy+=(modeHeld?-.38:.34)*dt;player.vy=Math.max(-6.4,Math.min(6.4,player.vy));player.y+=player.vy*dt;
+   player.y=Math.max(36,Math.min(308,player.y));
+ }else{
+   const dir=modeHeld?-1:1;player.y+=dir*5.1*dt;player.y=Math.max(34,Math.min(308,player.y));
+ }
+ distance+=speed;
+ for(const o of obstacles){
+   const ox=o.x-distance;
+   // Forgiving inset hitbox: collision tests only the central portion of player and obstacle.
+   const px=player.x+7,py=player.y+6,pw=16,ph=dashMode==='cube'?18:18;
+   const obstacleLeft=ox+Math.max(5,o.w*.18),obstacleRight=ox+o.w-Math.max(5,o.w*.18);
+   const obstacleTop=338-o.h+7,obstacleBottom=338;
+   if(px+pw>obstacleLeft&&px<obstacleRight&&py+ph>obstacleTop&&py<obstacleBottom){finishDash(false);return}
+ }
+ for(const o of orbs){const ox=o.x-distance;if(!o.got&&Math.hypot(ox-(player.x+15),o.y-(player.y+15))<29){o.got=true;save.orbs++;save.coins+=2}}
+ $('#dashRunStats').textContent=Math.min(100,Math.floor(distance/38))+' / 100%';
+ if(distance>=3800){finishDash(true);return}
+ drawCourse();gameRAF=requestAnimationFrame(step)
+}
+function startLevel(i){activeLevel=i;if(i>=4)modeUnlocked.ship=true;if(i>=7)modeUnlocked.wave=true;localStorage.setItem('aeroDashModesUnlocked',JSON.stringify(modeUnlocked));updateModeButtons();hub.hidden=true;gameHub.hidden=false;$('#dashActiveName').textContent=levelNames[i];makeCourse();gameRun=true;paused=false;lastFrame=performance.now();save.plays++;persist();gameRAF=requestAnimationFrame(step)}function jump(){if(!gameRun||paused)return;if(dashMode==='cube'){if(player.ground){player.vy=-13.2;player.ground=false;save.jumps++;window.soundFX?.('pop')}}else{modeHeld=true;save.jumps++;window.soundFX?.('pop')}}function restart(){cancelAnimationFrame(gameRAF);makeCourse();gameRun=true;paused=false;lastFrame=performance.now();gameRAF=requestAnimationFrame(step)}$('#dashBackHub').onclick=()=>{gameRun=false;cancelAnimationFrame(gameRAF);gameHub.hidden=true;hub.hidden=false;renderHub()};$('#dashRestart').onclick=restart;$('#dashJump').onclick=jump;$('#dashPauseNew').onclick=()=>{if(!gameRun)return;paused=!paused;$('#dashPauseNew').textContent=paused?'▶ Resume':'Ⅱ Pause';if(!paused){lastFrame=performance.now();gameRAF=requestAnimationFrame(step)}else cancelAnimationFrame(gameRAF)};gc.addEventListener('pointerdown',e=>{if(dashMode==='cube')jump();else setModeHold(true)});['pointerup','pointercancel','pointerleave'].forEach(ev=>gc.addEventListener(ev,()=>setModeHold(false)));
+$('#dashJump').addEventListener('pointerdown',e=>{if(dashMode==='cube')jump();else setModeHold(true)});['pointerup','pointercancel','pointerleave'].forEach(ev=>$('#dashJump').addEventListener(ev,()=>setModeHold(false)));
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&!gameHub.hidden){e.preventDefault();if(dashMode==='cube')jump();else setModeHold(true)}});
+document.addEventListener('keyup',e=>{if(e.code==='Space')setModeHold(false)});$('#dashGameHub').addEventListener('click',e=>{if(e.target.closest('[data-result-action]'))return});updateModeButtons();renderHub();
 }
 // AeroVice City: a larger free-roam city with smooth acceleration and steering.
 const cityCanvas=$('#gameCanvas');let cityLoop=0,cityActive=false,cityCar={x:450,y:350,vx:0,vy:0,angle:0,turn:0},cityKeys={};const cityOrbsLocal=[];
@@ -1210,4 +1330,76 @@ paint(current);
 })();
 </script>
 
+
+<script id="workspace122-navigation-variant-accessibility">
+(()=>{
+ 'use strict';
+ const all=(q,root=document)=>[...root.querySelectorAll(q)];
+ function activatePage(id){
+   const target=document.getElementById(id);
+   if(!target || !target.classList.contains('page')) return false;
+   all('.page').forEach(p=>p.classList.toggle('active',p===target));
+   all('[data-page]').forEach(b=>{
+     const on=b.dataset.page===id;
+     b.classList.toggle('active',on);
+     b.setAttribute('aria-current',on?'page':'false');
+   });
+   try{history.replaceState(null,'','#'+id)}catch{}
+   window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+   return true;
+ }
+ // Capture-phase delegation repairs tab navigation even if an earlier script bound
+ // handlers to stale/replaced buttons.
+ document.addEventListener('click',e=>{
+   const b=e.target.closest('[data-page]');
+   if(!b)return;
+   if(activatePage(b.dataset.page)){e.preventDefault();}
+ },true);
+ all('[data-page]').forEach(b=>{
+   b.setAttribute('type','button');
+   b.setAttribute('aria-controls',b.dataset.page);
+   b.setAttribute('aria-label',b.textContent.trim()+' tab');
+ });
+ all('.page').forEach(p=>{if(!p.hasAttribute('tabindex'))p.tabIndex=-1});
+ // One authoritative theme restore path for all twelve variants.
+ const valid=['aero','dorfic','eco','aqua','metro','dark','festive','technozen','fourcolors','helvetica-aqua','aurora','glacier'];
+ const names=['Frutiger Aero','Frutiger DORfic','Frutiger Eco','Frutiger Aqua','Frutiger Metro','Dark Aero','Frutiger Festive','Technozen','Four Colors','Helvetica Aqua Aero','Frutiger Aurora','Frutiger Glacier'];
+ const desc=['Original blue and green glass desktop','Warm orange and amber colors','Fresh green nature palette','Underwater blues and aquatic gloss','Colorful geometric vector energy','Midnight glass and cyan highlights','Festive jewel tones and warm lights','Soft silver, pale blue and calm green','Electric lime, sky blue, hot pink and tangerine','Marine blues, teal, bubbles and liquid gloss','Aurora curtains, luminous bokeh and violet-blue light','Snow whites, glacier ice and frosted blue glass'];
+ function setTheme(v){
+   if(!valid.includes(v))return;
+   document.body.classList.remove(...valid.map(x=>'variant-'+x));
+   document.body.classList.add('variant-'+v);
+   document.body.dataset.variant=v;
+   try{localStorage.setItem('aero51Variant',v);localStorage.setItem('aeroWorkspace40Variant',v)}catch{}
+   all('[data-variant]').forEach(b=>{
+     const active=b.dataset.variant===v;
+     b.classList.toggle('selected',active);
+     b.setAttribute('aria-pressed',String(active));
+   });
+   const idx=valid.indexOf(v),status=document.getElementById('variantStatus');
+   if(status)status.textContent=names[idx]+' • '+desc[idx];
+   const preview=document.getElementById('variantPreview');
+   if(preview){preview.className='variant-preview '+(v==='aero'?'':v);const label=preview.querySelector('.preview-label');if(label)label.textContent=names[idx]}
+ }
+ document.addEventListener('click',e=>{
+   const b=e.target.closest('[data-variant]');
+   if(b)setTheme(b.dataset.variant);
+ },true);
+ let saved='aero';try{saved=localStorage.getItem('aero51Variant')||localStorage.getItem('aeroWorkspace40Variant')||'aero'}catch{}
+ setTheme(saved);
+ // Make all tab controls keyboard reachable and preserve native disabled behavior.
+ all('button:not([type])').forEach(b=>b.type='button');
+})();
+</script>
+
+<style id="workspace122-dash-modes">
+.dash-mode-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;border:1px solid #fff;border-radius:18px;background:linear-gradient(135deg,#ffffffd9,#9de6ffd9);box-shadow:0 7px 18px #07527a25,inset 0 2px 3px #fff}
+.dash-mode-bar button{padding:9px 15px;border:1px solid #fff;border-radius:12px;background:linear-gradient(#fff,#c8f3ff 55%,#55bfe6);color:#07517e;font-weight:800}
+.dash-mode-bar button.selected{background:linear-gradient(#fff,#b6f7ff 40%,#159bd1);color:#fff;box-shadow:0 0 0 2px #fff,0 0 0 4px #39bde2}
+.dash-mode-bar button:disabled{opacity:.48;filter:grayscale(.5)}
+.dash-mode-bar span{font-size:12px;font-weight:700;color:#07517e}
+#dashJump{touch-action:none;user-select:none;-webkit-user-select:none}
+button:focus-visible,[data-page]:focus-visible,[data-variant]:focus-visible{outline:3px solid #ffbf55!important;outline-offset:3px}
+@media(max-width:620px){.dash-mode-bar{gap:6px}.dash-mode-bar button{flex:1;padding:10px 8px}.dash-mode-bar span{width:100%;text-align:center}}
+</style>
 </body></html>

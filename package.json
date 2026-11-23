@@ -1,6 +1,6 @@
 {
   "name": "frutiger-aero-workspace",
-  "version": "12.0.1",
+  "version": "12.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,5 +15,5 @@
     "helmet": "^8.1.0",
     "socket.io": "^4.8.1"
   },
-  "description": "Frutiger Aero Workspace 12.0.1 - expanded and repaired variant themes"
+  "description": "Frutiger Aero Workspace 12.2 - navigation, arcade and game-mode expansion"
 }
