@@ -1,6 +1,6 @@
 {
   "name": "frutiger-aero-workspace",
-  "version": "12.3.0",
+  "version": "12.4.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,5 +15,5 @@
     "helmet": "^8.1.0",
     "socket.io": "^4.8.1"
   },
-  "description": "Frutiger Aero Workspace 12.3 - realistic Aero visual refresh, custom transparent icons, and repaired navigation"
+  "description": "Frutiger Aero Workspace 12.4 - reliable navigation and correctly integrated user-created artwork"
 }

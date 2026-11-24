@@ -10,7 +10,7 @@ const app=express();
 app.use(helmet({contentSecurityPolicy:false,crossOriginEmbedderPolicy:false}));
 app.use(rateLimit({windowMs:60_000,limit:180,standardHeaders:true,legacyHeaders:false}));
 app.use(express.static(__dirname,{extensions:['html']}));
-app.get('/health',(req,res)=>res.json({ok:true,version:'12.3.0'}));
+app.get('/health',(req,res)=>res.json({ok:true,version:'12.4.0'}));
 const server=createServer(app);const io=new Server(server,{maxHttpBufferSize:1e6});
 const rooms=new Map();
 io.on('connection',socket=>{
